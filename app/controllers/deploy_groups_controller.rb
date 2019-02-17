@@ -1,7 +1,7 @@
 # frozen_string_literal: true
-class DeployGroupsController < ApplicationController
+class DeployGroupsController < ResourceController
   before_action :authorize_super_admin!, except: [:index, :show, :missing_config]
-  before_action :deploy_group, except: [:index, :create, :new]
+  before_action :find_resource, only: [:index, :create, :new]
 
   def index
     @deploy_groups =
@@ -33,43 +33,43 @@ class DeployGroupsController < ApplicationController
     end
   end
 
-  def new
-    @deploy_group = DeployGroup.new
-    render :edit
-  end
+  # def new
+    # @deploy_group = DeployGroup.new
+    # render :edit
+  # end
 
-  def create
-    @deploy_group = DeployGroup.create(deploy_group_params)
-    if @deploy_group.persisted?
-      flash[:notice] = "Successfully created deploy group: #{@deploy_group.name}"
-      redirect_to action: :index
-    else
-      render :edit
-    end
-  end
+  # def create
+    # @deploy_group = DeployGroup.create(deploy_group_params)
+    # if @deploy_group.persisted?
+      # flash[:notice] = "Successfully created deploy group: #{@deploy_group.name}"
+      # redirect_to action: :index
+    # else
+      # render :edit
+    # end
+  # end
 
-  def edit
-  end
+  # def edit
+  # end
 
-  def update
-    if deploy_group.update_attributes(deploy_group_params)
-      flash[:notice] = "Successfully saved deploy group: #{deploy_group.name}"
-      redirect_to action: :index
-    else
-      render :edit
-    end
-  end
+  # def update
+    # if deploy_group.update_attributes(deploy_group_params)
+      # flash[:notice] = "Successfully saved deploy group: #{deploy_group.name}"
+      # redirect_to action: :index
+    # else
+      # render :edit
+    # end
+  # end
 
-  def destroy
-    if deploy_group.deploy_groups_stages.empty?
-      deploy_group.soft_delete!(validate: false)
-      flash[:notice] = "Successfully deleted deploy group: #{deploy_group.name}"
-      redirect_to action: :index
-    else
-      flash[:error] = "Deploy group is still in use."
-      redirect_to deploy_group
-    end
-  end
+  # def destroy
+    # if deploy_group.deploy_groups_stages.empty?
+      # deploy_group.soft_delete!(validate: false)
+      # flash[:notice] = "Successfully deleted deploy group: #{deploy_group.name}"
+      # redirect_to action: :index
+    # else
+      # flash[:error] = "Deploy group is still in use."
+      # redirect_to deploy_group
+    # end
+  # end
 
   def missing_config
     return unless compare = params[:compare].presence
@@ -92,6 +92,18 @@ class DeployGroupsController < ApplicationController
   end
 
   private
+
+  def search_resources
+    if project_id = params[:project_id]
+      Project.find(project_id).stages.find(params.require(:id)).deploy_groups
+    else
+      DeployGroup.where(nil)
+    end.sort_by(&:natural_order)
+  end
+
+  def allowed_includes
+    [Samson::Hooks.fire(:deploy_group_includes)]
+  end
 
   def compare_values(a, b)
     a = yield(a)
@@ -125,7 +137,7 @@ class DeployGroupsController < ApplicationController
     ).freeze
   end
 
-  def deploy_group
-    @deploy_group ||= DeployGroup.find_by_param!(params[:id])
-  end
+  # def deploy_group
+    # @deploy_group ||= DeployGroup.find_by_param!(params[:id])
+  # end
 end
